@@ -2,35 +2,80 @@ use std::env;
 use std::process;
 use std::io::{self, Write};
 use std::io::stdin;
+use std::fmt::{Display, Formatter, Result};
 
-struct Token {}
+#[derive(Clone)]
+enum TokenType {
+    LeftParen,
+    RightParen,
+    Plus,
+    Number,
+    EOF,
+}
 
-impl Token {}
+impl Display for TokenType {
+    fn fmt(&self, f: &mut Formatter) -> Result {
+       match *self {
+           TokenType::LeftParen => write!(f, "{}", "("),
+           TokenType::RightParen => write!(f, "{}", ")"),
+           TokenType::Plus => write!(f, "{}", "+"),
+           TokenType::Number => write!(f, "{}", "<number>"),
+           TokenType::EOF => write!(f, "{}", "<EOF>"),
+       }
+    }
+}
 
-struct TokenType {}
+#[derive(Clone)]
+struct Token {
+    r#type: TokenType,
+    lexeme: String,
+    literal: String,
+    line: u32,
+}
 
-impl TokenType {}
+impl Token {
+    fn new(type_: TokenType, lexeme: String, literal: String, line: u32) -> Token {
+        Token {
+            r#type: type_,
+            lexeme: lexeme,
+            literal: literal,
+            line: line,
+        }
+    }
+}
 
-struct Scanner {}
+struct Scanner {
+    source: String,
+    line: u32,
+    current: u32,
+    start: u32,
+    tokens: Vec<Token>,
+}
 
 impl Scanner {
-    fn new(&mut self, source) {
-        self.source = source;
+    fn new(source: String) -> Scanner {
+        Scanner {
+            source: source,
+            line: 1,
+            current: 0,
+            start: 0,
+            tokens: Vec::new(),
+        }
     }
 
-    fn scan_tokens(&mut self) {
+    fn scan_tokens(&mut self) -> Vec<Token> {
         while !self.is_at_end() {
             self.start = self.current;
-            self.internal_scan_token();
+            self.internal_scan_tokens();
         }
 
-        self.tokens.push(Token::new(TokenType::EOF, "", None, self.line));
+        self.tokens.push(Token::new(TokenType::EOF, "".to_string(), "".to_string(), self.line));
 
-        self.tokens;
+        self.tokens.clone()
     }
 
     fn is_at_end(&self) -> bool {
-        self.current >= self.source.len()
+        self.current >= self.source.len().try_into().unwrap()
     }
 
     fn internal_scan_tokens(&mut self) {
@@ -45,15 +90,15 @@ impl Scanner {
                 if self.is_digit(c) {
                     self.number();
                 } else {
-                    self.add_token(TokenType::Error, "Unknown token");
+                    self.error(format!("Unexpected character {}", c));
                 }
             },
         }
     }
 
-    fn advance(&mut self) {
+    fn advance(&mut self) -> char {
         self.current += 1;
-        &self.source[self.current];
+        self.source.chars().nth(self.current as usize).unwrap()
     }
 
     fn add_token(&mut self, token_type: TokenType, literal: &str) {
@@ -61,29 +106,38 @@ impl Scanner {
     }
 
     fn internal_add_token(&mut self, token_type: TokenType, literal: &str) {
-        let text = &self.source[self.start..self.current];
-        self.tokens.push(Token::new(token_type, literal, text, self.line));
+        let text = &self.source.chars().skip(self.start as usize).take((self.current - self.start).try_into().unwrap()).collect::<String>();
+        self.tokens.push(Token::new(token_type, literal.to_string(), text.to_string(), self.line));
     }
 
     fn is_digit(&self, c: char) -> bool {
         c >= '0' && c <= '9'
     }
 
-    fn peek(&self) -> char {
-        if self.is_at_end() {
-            '\0'
-        } else {
-            self.source[self.current]
-        }
+    fn number(&mut self) {
+        self.add_token(TokenType::Number, &self.source.chars().skip(self.start as usize).take((self.current - self.start).try_into().unwrap()).collect::<String>());
+    }
+
+    // fn peek(&self) -> char {
+    //     if self.is_at_end() {
+    //         '\0'
+    //     } else {
+    //         self.source.chars().nth(self.current as usize).unwrap()
+    //     }
+    // }
+
+    fn error(&self, message: String) {
+        println!("[line {}] Error: {}", self.line, message);
+        process::exit(1);
     }
 }
 
 fn run (data: String) {
-    let scanner = Scanner::new(&data);
+    let mut scanner = Scanner::new(data);
     let tokens = scanner.scan_tokens();
 
     for token in tokens {
-        println!("{:?}", token);
+        println!("{} {} {} {}", token.r#type, token.lexeme, token.literal, token.line);
     }
 }
 
