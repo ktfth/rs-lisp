@@ -42,6 +42,10 @@ impl Token {
             line: line,
         }
     }
+
+    fn to_string(&self) -> String {
+        format!("type: {} | lexeme: {} | literal: {} | line: {}", self.r#type, self.lexeme, self.literal, self.line)
+    }
 }
 
 struct Scanner {
@@ -98,7 +102,7 @@ impl Scanner {
 
     fn advance(&mut self) -> char {
         self.current += 1;
-        self.source.chars().nth(self.current as usize).unwrap()
+        self.source.chars().collect::<Vec<char>>()[self.current as usize - 1]
     }
 
     fn add_token(&mut self, token_type: TokenType, literal: &str) {
@@ -137,7 +141,7 @@ fn run (data: String) {
     let tokens = scanner.scan_tokens();
 
     for token in tokens {
-        println!("{} {} {} {}", token.r#type, token.lexeme, token.literal, token.line);
+        println!("{}", token.to_string());
     }
 }
 
