@@ -62,29 +62,30 @@ impl Token {
     }
 }
 
-trait Visitor {
-    fn visit_binary(&mut self);
-    fn visit_literal(&mut self);
+struct Expr {
+    expr: String,
 }
 
-trait Expr {
-    fn new(token: Token, left: Option<&dyn Expr>, right: Option<&dyn Expr>) -> Self where Self: Sized;
-    fn accept(&self, visitor: &mut AstPrinter) -> String;
-    left: Option<&dyn Expr>;
-    rigth: Option<&dyn Expr>;
-    value: Option<u32>;
-}
+impl Expr {
+    fn new(expr: String) -> Expr {
+        Expr {
+            expr: expr,
+        }
+    }
 
-impl dyn Expr {}
+    fn to_string(&self) -> String {
+        format!("{}", self.expr)
+    }
+}
 
 struct Binary {
     token: Token,
-    left: Box<dyn Expr>,
-    right: Box<dyn Expr>,
+    left: Box<Expr>,
+    right: Box<Expr>,
 }
 
-impl Expr for Binary {
-    fn new(token: Token, left: Option<&dyn Expr>, right: Option<&dyn Expr>) -> Self {
+impl Binary {
+    fn new(token: Token, left: Expr, right: Expr) -> Binary {
         Binary {
             token: token,
             left: Box::new(left),
@@ -92,23 +93,8 @@ impl Expr for Binary {
         }
     }
 
-    fn accept(&self, visitor: &mut AstPrinter) -> String {
-        match visitor.visit_binary(self) {
-            Some(s) => s,
-            None => String::new(),
-        }
-    }
-}
-
-struct Grouping {
-    expr: Box<dyn Expr>,
-}
-
-impl Expr for Grouping {
-    fn new(expr: &dyn Expr) -> Self {
-        Grouping {
-            expr: Box::new(expr),
-        }
+    fn to_string(&self) -> String {
+        format!("{}\n{}\n{}", self.token.to_string(), self.left.to_string(), self.right.to_string())
     }
 }
 
@@ -116,57 +102,23 @@ struct Literal {
     value: u32,
 }
 
-impl Expr for Literal {
-    fn new(value: u32) -> Self {
+impl Literal {
+    fn new(value: u32) -> Literal {
         Literal {
             value: value,
         }
     }
 
-    fn accept(&self, visitor: &mut AstPrinter) -> String {
-        visitor.visit_literal(self)
+    fn to_string(&self) -> String {
+        format!("{}", self.value)
     }
 }
 
 struct AstPrinter {}
 
 impl AstPrinter {
-    fn print(&self, expr: &dyn Expr) -> String {
-        format!("{}", expr.accept(&mut self))
-    }
-
-    fn visit_binary(&mut self, expr: &dyn Expr) {
-        let mut exprs = vec![&expr.left, &expr.right];
-        self.parenthesized(&expr.operator.lexeme, exprs);
-    }
-
-    fn visit_group(&mut self, expr: &dyn Expr) {
-        self.parenthesized("group", &expr.expr);
-    }
-
-    fn visit_literal(&mut self, expr: &dyn Expr) -> String {
-        if expr.value == None {
-            return "nil".to_string();
-        }
-        return expr.value.to_string();
-    }
-
-    fn visit_unary(&mut self, expr: &dyn Expr) {
-        self.parenthesized(&expr.operator.lexeme, &expr.right);
-    }
-
-    fn parenthesized(&mut self, name: &str, exprs: Vec<&dyn Expr>) -> String {
-        let mut builder: Vec<String> = Vec::new();
-
-        builder.push("(".to_string());
-        builder.push(name.to_string());
-        for expr in exprs {
-            builder.push(" ".to_string());
-            builder.push(expr.accept(self));
-        }
-        builder.push(")".to_string());
-
-        format!("{}", builder.join(""))
+    fn print(expression: Expr) -> String {
+        format!("{}", expression.to_string())
     }
 }
 
@@ -259,17 +211,12 @@ impl Scanner {
 }
 
 fn run (data: String) {
-    // let mut scanner = Scanner::new(data);
-    // let tokens = scanner.scan_tokens();
-    // let parser = Parser::new(tokens);
-    let expression = Binary::new(
-        Token::new(TokenType::Plus, "+".to_string(), "+".to_string(), 1),
-        Some(&Literal { value: 5 }),
-        Some(&Literal { value: 5 }),
-    );
-    let ast_printer = AstPrinter {};
+    let mut scanner = Scanner::new(data);
+    let tokens = scanner.scan_tokens();
 
-    println!("{}", ast_printer.print(&expression));
+    for token in tokens {
+        println!("{}", token.to_string());
+    }
 }
 
 fn run_file(file: &str, had_error: bool) {
@@ -309,8 +256,20 @@ fn main() {
     if params.len() > 1 {
         println!("Usage: rs-lisp [script]");
         process::exit(1);
-    } else if params.len() == 1 {
+    } else if params.len() == 1 && params[0].ends_with(".lisp") {
         run_file(params[0], had_error);
+    } else if params.len() == 1 && params[0] == "ast-printer" {
+        let a = Literal::new(5);
+        let b = Literal::new(5);
+        let binary = Binary::new(
+            Token::new(TokenType::Plus, "+".to_string(), "+".to_string(), 1),
+            Expr::new(a.to_string()),
+            Expr::new(b.to_string()),
+        );
+        
+        let expression = Expr::new(binary.to_string());
+        
+        println!("{}", AstPrinter::print(expression));
     } else {
         run_prompt();
     }
