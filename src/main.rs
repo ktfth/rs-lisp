@@ -4,6 +4,20 @@ use std::io::{self, Write};
 use std::io::stdin;
 use std::fmt::{Display, Formatter, Result};
 
+// struct Parser {
+//     tokens: Vec<Token>,
+//     current: u32,
+// }
+
+// impl Parser {
+//     fn new(tokens: Vec<Token>) -> Parser {
+//         Parser {
+//             tokens: tokens,
+//             current: 0,
+//         }
+//     }
+// }
+
 #[derive(Clone)]
 enum TokenType {
     LeftParen,
@@ -45,6 +59,114 @@ impl Token {
 
     fn to_string(&self) -> String {
         format!("type: {} | lexeme: {} | literal: {} | line: {}", self.r#type, self.lexeme, self.literal, self.line)
+    }
+}
+
+trait Visitor {
+    fn visit_binary(&mut self);
+    fn visit_literal(&mut self);
+}
+
+trait Expr {
+    fn new(token: Token, left: Option<&dyn Expr>, right: Option<&dyn Expr>) -> Self where Self: Sized;
+    fn accept(&self, visitor: &mut AstPrinter) -> String;
+    left: Option<&dyn Expr>;
+    rigth: Option<&dyn Expr>;
+    value: Option<u32>;
+}
+
+impl dyn Expr {}
+
+struct Binary {
+    token: Token,
+    left: Box<dyn Expr>,
+    right: Box<dyn Expr>,
+}
+
+impl Expr for Binary {
+    fn new(token: Token, left: Option<&dyn Expr>, right: Option<&dyn Expr>) -> Self {
+        Binary {
+            token: token,
+            left: Box::new(left),
+            right: Box::new(right),
+        }
+    }
+
+    fn accept(&self, visitor: &mut AstPrinter) -> String {
+        match visitor.visit_binary(self) {
+            Some(s) => s,
+            None => String::new(),
+        }
+    }
+}
+
+struct Grouping {
+    expr: Box<dyn Expr>,
+}
+
+impl Expr for Grouping {
+    fn new(expr: &dyn Expr) -> Self {
+        Grouping {
+            expr: Box::new(expr),
+        }
+    }
+}
+
+struct Literal {
+    value: u32,
+}
+
+impl Expr for Literal {
+    fn new(value: u32) -> Self {
+        Literal {
+            value: value,
+        }
+    }
+
+    fn accept(&self, visitor: &mut AstPrinter) -> String {
+        visitor.visit_literal(self)
+    }
+}
+
+struct AstPrinter {}
+
+impl AstPrinter {
+    fn print(&self, expr: &dyn Expr) -> String {
+        format!("{}", expr.accept(&mut self))
+    }
+
+    fn visit_binary(&mut self, expr: &dyn Expr) {
+        let mut exprs = vec![&expr.left, &expr.right];
+        self.parenthesized(&expr.operator.lexeme, exprs);
+    }
+
+    fn visit_group(&mut self, expr: &dyn Expr) {
+        self.parenthesized("group", &expr.expr);
+    }
+
+    fn visit_literal(&mut self, expr: &dyn Expr) -> String {
+        if expr.value == None {
+            return "nil".to_string();
+        }
+        return expr.value.to_string();
+    }
+
+    fn visit_unary(&mut self, expr: &dyn Expr) {
+        self.parenthesized(&expr.operator.lexeme, &expr.right);
+    }
+
+    fn parenthesized(&mut self, name: &str, exprs: Vec<&dyn Expr>) -> String {
+        let mut builder: Vec<String> = Vec::new();
+
+        builder.push("(".to_string());
+        builder.push(name.to_string());
+        for expr in exprs {
+            builder.push(" ".to_string());
+            builder.push(expr.accept(self));
+        }
+        builder.push(")".to_string());
+
+        format!("{}", builder.join(""))
     }
 }
 
@@ -137,12 +259,17 @@ impl Scanner {
 }
 
 fn run (data: String) {
-    let mut scanner = Scanner::new(data);
-    let tokens = scanner.scan_tokens();
+    // let mut scanner = Scanner::new(data);
+    // let tokens = scanner.scan_tokens();
+    // let parser = Parser::new(tokens);
+    let expression = Binary::new(
+        Token::new(TokenType::Plus, "+".to_string(), "+".to_string(), 1),
+        Some(&Literal { value: 5 }),
+        Some(&Literal { value: 5 }),
+    );
+    let ast_printer = AstPrinter {};
 
-    for token in tokens {
-        println!("{}", token.to_string());
-    }
+    println!("{}", ast_printer.print(&expression));
 }
 
 fn run_file(file: &str, had_error: bool) {
