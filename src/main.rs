@@ -63,18 +63,26 @@ impl Token {
 }
 
 struct Expr {
-    expr: String,
+    binary: Option<Binary>,
+    literal: Option<Literal>,
 }
 
 impl Expr {
-    fn new(expr: String) -> Expr {
+    fn new(binary: Option<Binary>, literal: Option<Literal>) -> Expr {
         Expr {
-            expr: expr,
+            binary: binary,
+            literal: literal,
         }
     }
 
     fn to_string(&self) -> String {
-        format!("{}", self.expr)
+        match &self.binary {
+            Some(binary) => format!("binary: {}", binary.to_string()),
+            None => match &self.literal {
+                Some(literal) => format!("literal: {}", literal.to_string()),
+                None => format!(""),
+            },
+        }
     }
 }
 
@@ -263,11 +271,11 @@ fn main() {
         let b = Literal::new(5);
         let binary = Binary::new(
             Token::new(TokenType::Plus, "+".to_string(), "+".to_string(), 1),
-            Expr::new(a.to_string()),
-            Expr::new(b.to_string()),
+            Expr::new(None, Some(a)),
+            Expr::new(None, Some(b)),
         );
         
-        let expression = Expr::new(binary.to_string());
+        let expression = Expr::new(Some(binary), None);
         
         println!("{}", AstPrinter::print(expression));
     } else {
