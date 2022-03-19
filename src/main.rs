@@ -220,7 +220,7 @@ impl Scanner {
             _ => {
                 if self.is_digit(c) {
                     self.number();
-                } else {
+                } else if !self.is_at_end() {
                     self.error(format!("Unexpected character {}", c));
                 }
             },
