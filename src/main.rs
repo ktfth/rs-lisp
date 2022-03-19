@@ -139,11 +139,22 @@ impl AstPrinter {
     }
 
     fn visit_binary_expr(&self, binary: &Binary) -> String {
-        format!("binary: {}", binary.to_string())
+        let exprs = vec![binary.left.clone(), binary.right.clone()];
+        self.parenthesized(binary.token.lexeme.clone(), exprs)
     }
 
     fn visit_literal_expr(&self, literal: &Literal) -> String {
-        format!("literal: {}", literal.to_string())
+        format!("{}", literal.to_string())
+    }
+
+    fn parenthesized(&self, name: String, exprs: Vec<Box<Expr>>) -> String {
+        let mut result = String::new();
+        result.push_str(&format!("({}", name));
+        for expr in exprs {
+            result.push_str(&format!(" {}", expr.accept(AstPrinter {})));
+        }
+        result.push_str(&format!(")"));
+        result
     }
 }
 
