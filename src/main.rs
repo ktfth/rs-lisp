@@ -84,9 +84,18 @@ impl Binary {
             right: self.right.clone(),
         })
     }
+}
 
-    fn to_string(&self) -> String {
-        format!("{}\n{}\n{}", self.token.to_string(), self.left.accept(AstPrinter {}), self.right.accept(AstPrinter {}))
+#[derive(Clone)]
+struct Grouping {
+    expr: Box<Expr>,
+}
+
+impl Grouping {
+    fn accept(&self, ast_printer: AstPrinter) -> String {
+        ast_printer.visit_grouping_expr(&Grouping {
+            expr: self.expr.clone(),
+        })
     }
 }
 
@@ -115,18 +124,22 @@ impl Literal {
 
 #[derive(Clone)]
 struct Expr {
+    grouping: Option<Grouping>,
     binary: Option<Binary>,
     literal: Option<Literal>,
 }
 
 impl Expr {
     fn accept(&self, ast_printer: AstPrinter) -> String {
-        match &self.binary {
-            Some(binary) => binary.accept(ast_printer),
-            None => match &self.literal {
-                Some(literal) => literal.accept(ast_printer),
-                None => "nil".to_string(),
-            },
+        match &self.grouping {
+            Some(grouping) => grouping.accept(ast_printer),
+            None => match &self.binary {
+                Some(binary) => binary.accept(ast_printer),
+                None => match &self.literal {
+                    Some(literal) => literal.accept(ast_printer),
+                    None => "nil".to_string(),
+                },
+            }
         }
     }
 }
@@ -141,6 +154,10 @@ impl AstPrinter {
     fn visit_binary_expr(&self, binary: &Binary) -> String {
         let exprs = vec![binary.left.clone(), binary.right.clone()];
         self.parenthesized(binary.token.lexeme.clone(), exprs)
+    }
+
+    fn visit_grouping_expr(&self, grouping: &Grouping) -> String {
+        self.parenthesized("group".to_string(), vec![grouping.expr.clone()])
     }
 
     fn visit_literal_expr(&self, literal: &Literal) -> String {
@@ -300,17 +317,27 @@ fn main() {
         let binary = Binary::new(
             Token::new(TokenType::Plus, "+".to_string(), "+".to_string(), 1),
             Expr {
+                grouping: None,
                 binary: None,
                 literal: Some(a),
             },
             Expr {
+                grouping: None,
                 binary: None,
                 literal: Some(b),
             },
         );
+        let group = Grouping {
+            expr: Box::new(Expr {
+                grouping: None,
+                binary: Some(binary),
+                literal: None,
+            }),
+        };
 
         let expression = Expr {
-            binary: Some(binary),
+            grouping: Some(group),
+            binary: None,
             literal: None,
         };
         
