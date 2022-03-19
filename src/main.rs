@@ -2,7 +2,6 @@ use std::env;
 use std::process;
 use std::io::{self, Write};
 use std::io::stdin;
-use std::fmt::{Display, Formatter, Result};
 
 // struct Parser {
 //     tokens: Vec<Token>,
@@ -27,8 +26,8 @@ enum TokenType {
     EOF,
 }
 
-impl Display for TokenType {
-    fn fmt(&self, f: &mut Formatter) -> Result {
+impl std::fmt::Display for TokenType {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
        match *self {
            TokenType::LeftParen => write!(f, "{}", "("),
            TokenType::RightParen => write!(f, "{}", ")"),
@@ -62,6 +61,7 @@ impl Token {
     }
 }
 
+#[derive(Clone)]
 struct Binary {
     token: Token,
     left: Box<Expr>,
@@ -77,11 +77,20 @@ impl Binary {
         }
     }
 
+    fn accept(&self, ast_printer: AstPrinter) -> String {
+        ast_printer.visit_binary_expr(&Binary {
+            token: self.token.clone(),
+            left: self.left.clone(),
+            right: self.right.clone(),
+        })
+    }
+
     fn to_string(&self) -> String {
-        format!("{}\n{}\n{}", self.token.to_string(), self.left.to_string(), self.right.to_string())
+        format!("{}\n{}\n{}", self.token.to_string(), self.left.accept(AstPrinter {}), self.right.accept(AstPrinter {}))
     }
 }
 
+#[derive(Clone)]
 struct Literal {
     value: u32,
 }
@@ -93,22 +102,29 @@ impl Literal {
         }
     }
 
+    fn accept(&self, ast_printer: AstPrinter) -> String {
+        ast_printer.visit_literal_expr(&Literal {
+            value: self.value.clone(),
+        })
+    }
+
     fn to_string(&self) -> String {
         format!("{}", self.value)
     }
 }
 
+#[derive(Clone)]
 struct Expr {
     binary: Option<Binary>,
     literal: Option<Literal>,
 }
 
 impl Expr {
-    fn to_string(&self) -> String {
+    fn accept(&self, ast_printer: AstPrinter) -> String {
         match &self.binary {
-            Some(binary) => binary.to_string(),
+            Some(binary) => binary.accept(ast_printer),
             None => match &self.literal {
-                Some(literal) => literal.to_string(),
+                Some(literal) => literal.accept(ast_printer),
                 None => "nil".to_string(),
             },
         }
@@ -119,7 +135,15 @@ struct AstPrinter {}
 
 impl AstPrinter {
     fn print(expression: Expr) -> String {
-        format!("{}", expression.to_string())
+        expression.accept(AstPrinter {})
+    }
+
+    fn visit_binary_expr(&self, binary: &Binary) -> String {
+        format!("binary: {}", binary.to_string())
+    }
+
+    fn visit_literal_expr(&self, literal: &Literal) -> String {
+        format!("literal: {}", literal.to_string())
     }
 }
 
