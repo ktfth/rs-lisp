@@ -29,24 +29,20 @@ impl std::fmt::Display for TokenType {
 #[derive(Clone)]
 struct Token {
     r#type: TokenType,
-    lexeme: String,
+    // lexeme: String,
     literal: String,
     // line: u32,
 }
 
 impl Token {
-    fn new(type_: TokenType, lexeme: String, literal: String, _line: u32) -> Token {
+    fn new(type_: TokenType, _lexeme: String, literal: String, _line: u32) -> Token {
         Token {
             r#type: type_,
-            lexeme: lexeme,
+            // lexeme: lexeme,
             literal: literal,
             // line: line,
         }
     }
-
-    // fn to_string(&self) -> String {
-    //     format!("type: {} | lexeme: {} | literal: {} | line: {}", self.r#type, self.lexeme, self.literal, self.line)
-    // }
 }
 
 #[derive(Clone)]
@@ -56,15 +52,8 @@ struct Binary {
 }
 
 impl Binary {
-    fn new(token: Token, values: Vec<Box<Expr>>) -> Binary {
-        Binary {
-            token: token,
-            values: values,
-        }
-    }
-
-    fn accept(&self, ast_printer: AstPrinter) -> String {
-        ast_printer.visit_binary_expr(&Binary {
+    fn accept(&self, interpreter: Interpreter) -> String {
+        interpreter.visit_binary_expr(&Binary {
             token: self.token.clone(),
             values: self.values.clone(),
         })
@@ -77,8 +66,8 @@ struct Grouping {
 }
 
 impl Grouping {
-    fn accept(&self, ast_printer: AstPrinter) -> String {
-        ast_printer.visit_grouping_expr(&Grouping {
+    fn accept(&self, interpreter: Interpreter) -> String {
+        interpreter.visit_grouping_expr(&Grouping {
             expr: self.expr.clone(),
         })
     }
@@ -96,14 +85,10 @@ impl Literal {
         }
     }
 
-    fn accept(&self, ast_printer: AstPrinter) -> String {
-        ast_printer.visit_literal_expr(&Literal {
+    fn accept(&self, interpreter: Interpreter) -> String {
+        interpreter.visit_literal_expr(&Literal {
             value: self.value.clone(),
         })
-    }
-
-    fn to_string(&self) -> String {
-        format!("{}", self.value)
     }
 }
 
@@ -119,14 +104,10 @@ impl Space {
         }
     }
 
-    fn accept(&self, ast_printer: AstPrinter) -> String {
-        ast_printer.visit_space_expr(&Space {
+    fn accept(&self, interpreter: Interpreter) -> String {
+        interpreter.visit_space_expr(&Space {
             value: self.value.clone(),
         })
-    }
-
-    fn to_string(&self) -> String {
-        format!("{}", self.value)
     }
 }
 
@@ -139,15 +120,15 @@ struct Expr {
 }
 
 impl Expr {
-    fn accept(&self, ast_printer: AstPrinter) -> String {
+    fn accept(&self, interpreter: Interpreter) -> String {
         match &self.grouping {
-            Some(grouping) => grouping.accept(ast_printer),
+            Some(grouping) => grouping.accept(interpreter),
             None => match &self.binary {
-                Some(binary) => binary.accept(ast_printer),
+                Some(binary) => binary.accept(interpreter),
                 None => match &self.literal {
-                    Some(literal) => literal.accept(ast_printer),
+                    Some(literal) => literal.accept(interpreter),
                     None => match &self.space {
-                        Some(space) => space.accept(ast_printer),
+                        Some(space) => space.accept(interpreter),
                         None => "nil".to_string(),
                     },
                 },
@@ -212,7 +193,6 @@ impl Parser {
 
         if self.r#match(vec![TokenType::LeftParen]) {
             let expr = self.expression();
-            // self.consume(TokenType::RightParen, "Expect ')' after expression.");
             return Expr {
                 grouping: Some(Grouping {
                     expr: Box::new(expr),
@@ -317,59 +297,58 @@ impl Parser {
     }
 }
 
-struct AstPrinter {}
+struct Interpreter {}
 
-impl AstPrinter {
-    fn print(expression: Expr) -> String {
-        expression.accept(AstPrinter {})
+impl Interpreter {
+    fn new() -> Interpreter {
+        Interpreter {}
     }
 
-    fn visit_binary_expr(&self, binary: &Binary) -> String {
-        self.parenthesized(binary.token.lexeme.clone(), binary.values.clone())
+    fn interpret(&self, expression: Expr) {
+        let value = self.evaluate(expression);
+        println!("{}", self.stringify(value));
     }
 
-    fn visit_grouping_expr(&self, grouping: &Grouping) -> String {
-        self.parenthesized("group".to_string(), vec![grouping.expr.clone()])
+    fn stringify(&self, value: String) -> String {
+        value
     }
 
-    fn visit_literal_expr(&self, literal: &Literal) -> String {
-        format!("{}", literal.to_string())
+    fn visit_literal_expr(&self, expr: &Literal) -> String {
+        expr.value.to_string()
     }
 
-    fn visit_space_expr(&self, space: &Space) -> String {
-        format!("{}", space.to_string())
+    fn visit_space_expr(&self, expr: &Space) -> String {
+        expr.value.to_string()
     }
 
-    fn parenthesized(&self, name: String, exprs: Vec<Box<Expr>>) -> String {
-        let mut result = String::new();
-        result.push_str(&format!("("));
-        result.push_str(&format!("{}", name));
+    fn visit_grouping_expr(&self, expr: &Grouping) -> String {
+        self.evaluate(*expr.expr.clone())
+    }
 
-        for expr in exprs {
-            match expr.grouping {
-                Some(grouping) => result.push_str(&format!(" {}", grouping.accept(AstPrinter {}))),
-                None => match expr.binary {
-                    Some(binary) => {
-                        result.push_str(&format!(" ({} ", binary.token.lexeme));
-                        for value in binary.values {
-                            result.push_str(&format!("{}", value.accept(AstPrinter {})))
-                        }
-                    },
-                    None => match expr.literal {
-                        Some(literal) => result.push_str(&format!("{}", literal.accept(AstPrinter {}))),
-                        None => match expr.space {
-                            Some(space) => result.push_str(&format!("{}", space.accept(AstPrinter {}))),
-                            None => panic!("Expect expression.")
-                        },
-                    },
-                },
-            }
-            result.push_str(&format!(")"));
-            // result.push_str(&format!(" {}", expr.accept(AstPrinter {})));
+    fn evaluate(&self, expr: Expr) -> String {
+        expr.accept(Interpreter {})
+    }
+
+    fn visit_binary_expr(&self, expr: &Binary) -> String {
+        let expr_values = &expr.values;
+        let mut values = String::new();
+        let token = &expr.token;
+
+        for value in expr_values {
+            values.push_str(&self.evaluate(*value.clone()));
         }
 
-        result.push_str(&format!(")"));
-        result
+        match token.r#type {
+            TokenType::Plus => {
+                let mut sum = 0;
+                let candidates = values.split(" ").collect::<Vec<&str>>();
+                for candidate in candidates {
+                    sum += candidate.parse::<u32>().unwrap();
+                }
+                sum.to_string()
+            }
+            _ => panic!("Unknown operation."),
+        }
     }
 }
 
@@ -448,14 +427,6 @@ impl Scanner {
         self.add_token(TokenType::Number, number);
     }
 
-    // fn peek(&self) -> char {
-    //     if self.is_at_end() {
-    //         '\0'
-    //     } else {
-    //         self.source.chars().nth(self.current as usize).unwrap()
-    //     }
-    // }
-
     fn error(&self, message: String) {
         println!("[line {}] Error: {}", self.line, message);
         process::exit(1);
@@ -466,10 +437,10 @@ fn run (data: String) {
     let mut scanner = Scanner::new(data);
     let tokens = scanner.scan_tokens();
     let mut parser = Parser::new(tokens);
-
     let expression = parser.parse();
+    let interpreter = Interpreter::new();
 
-    println!("{}", AstPrinter::print(expression));
+    interpreter.interpret(expression);
 }
 
 fn run_file(file: &str, had_error: bool) {
@@ -511,53 +482,6 @@ fn main() {
         process::exit(1);
     } else if params.len() == 1 && params[0].ends_with(".lisp") {
         run_file(params[0], had_error);
-    } else if params.len() == 1 && params[0] == "ast-printer" {
-        let a = Literal::new(5);
-        let a_expr = Expr {
-            grouping: None,
-            binary: None,
-            literal: Some(a),
-            space: None,
-        };
-        let space = Expr {
-            grouping: None,
-            binary: None,
-            literal: None,
-            space: Some(Space::new(" ".to_string())),
-        };
-        let b = Literal::new(5);
-        let b_expr = Expr {
-            grouping: None,
-            binary: None,
-            literal: Some(b),
-            space: None,
-        };
-        let values = vec![
-            Box::new(a_expr),
-            Box::new(space),
-            Box::new(b_expr),
-        ];
-        let binary = Binary::new(
-            Token::new(TokenType::Plus, "+".to_string(), "+".to_string(), 1),
-            values,
-        );
-        let group = Grouping {
-            expr: Box::new(Expr {
-                grouping: None,
-                binary: Some(binary),
-                literal: None,
-                space: None,
-            }),
-        };
-
-        let expression = Expr {
-            grouping: Some(group),
-            binary: None,
-            literal: None,
-            space: None,
-        };
-        
-        println!("{}", AstPrinter::print(expression));
     } else {
         run_prompt();
     }
