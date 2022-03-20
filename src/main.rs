@@ -519,6 +519,12 @@ fn main() {
             literal: Some(a),
             space: None,
         };
+        let space = Expr {
+            grouping: None,
+            binary: None,
+            literal: None,
+            space: Some(Space::new(" ".to_string())),
+        };
         let b = Literal::new(5);
         let b_expr = Expr {
             grouping: None,
@@ -528,6 +534,7 @@ fn main() {
         };
         let values = vec![
             Box::new(a_expr),
+            Box::new(space),
             Box::new(b_expr),
         ];
         let binary = Binary::new(
