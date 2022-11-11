@@ -51,6 +51,14 @@ impl Interpreter {
                 }
                 sum.to_string()
             }
+            TokenType::Minus => {
+              let candidates = values.split(" ").collect::<Vec<&str>>();
+              let mut minus = candidates[0].parse::<u32>().unwrap();
+              for candidate in candidates.iter().skip(1) {
+                  minus -= candidate.parse::<u32>().unwrap();
+              }
+              minus.to_string()
+            }
             _ => panic!("Unknown operation."),
         }
     }

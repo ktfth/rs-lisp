@@ -44,6 +44,7 @@ impl Scanner {
           '(' => self.add_token(TokenType::LeftParen, "("),
           ')' => self.add_token(TokenType::RightParen, ")"),
           '+' => self.add_token(TokenType::Plus, "+"),
+          '-' => self.add_token(TokenType::Minus, "-"),
           ' ' => self.add_token(TokenType::Space, " "),
           _ => {
               if self.is_digit(c) {
