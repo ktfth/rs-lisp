@@ -71,7 +71,7 @@ impl Parser {
       if self.r#match(vec![TokenType::Plus, TokenType::Minus]) {
           let operator = self.previous();
           let mut values = vec![];
-          self.consume(TokenType::Space, "Expect space after '+'.");
+          self.consume(TokenType::Space, "Expect space after operator.");
           while self.r#match(vec![TokenType::Number]) {
               let expr = Expr {
                   grouping: None,
