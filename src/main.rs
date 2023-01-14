@@ -1,20 +1,20 @@
 use std::env;
-use std::process;
-use std::io::{self, Write};
 use std::io::stdin;
+use std::io::{self, Write};
+use std::process;
 
-mod token_type;
-mod token;
 mod expr;
-mod parser;
 mod interpreter;
+mod parser;
 mod scanner;
+mod token;
+mod token_type;
 
-use crate::parser::Parser;
 use crate::interpreter::Interpreter;
+use crate::parser::Parser;
 use crate::scanner::Scanner;
 
-fn run (data: String) {
+fn run(data: String) {
     let mut scanner = Scanner::new(data);
     let tokens = scanner.scan_tokens();
     let mut parser = Parser::new(tokens);
@@ -32,19 +32,27 @@ fn run_file(file: &str, had_error: bool) {
     }
 }
 
+fn run_evaluation(data: &str, had_error: bool) {
+    run(data.to_string());
+    if had_error {
+        process::exit(65);
+    }
+}
+
 fn run_prompt() {
     loop {
         let mut s = String::new();
-        
+
         print!("> ");
-        
+
         io::stdout().flush().unwrap();
 
         stdin().read_line(&mut s).unwrap();
-        
+
         if let Some('\n') = s.chars().next_back() {
             s.pop();
-        } if let Some('\r') = s.chars().next_back() {
+        }
+        if let Some('\r') = s.chars().next_back() {
             s.pop();
         }
 
@@ -58,11 +66,13 @@ fn main() {
 
     let had_error = false;
 
-    if params.len() > 1 {
+    if params.len() == 1 && params[0] == "help" {
         println!("Usage: rs-lisp [script]");
         process::exit(1);
     } else if params.len() == 1 && params[0].ends_with(".lisp") {
         run_file(params[0], had_error);
+    } else if params.len() == 2 && params[0] == "evaluate" {
+        run_evaluation(params[1], had_error);
     } else {
         run_prompt();
     }

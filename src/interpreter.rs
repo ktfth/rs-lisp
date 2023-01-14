@@ -1,5 +1,5 @@
+use crate::expr::{Binary, Expr, Grouping, Literal, Space};
 use crate::token_type::TokenType;
-use crate::expr::{Expr, Grouping, Literal, Space, Binary};
 
 pub struct Interpreter {}
 
@@ -52,12 +52,28 @@ impl Interpreter {
                 sum.to_string()
             }
             TokenType::Minus => {
-              let candidates = values.split(" ").collect::<Vec<&str>>();
-              let mut minus = candidates[0].parse::<u32>().unwrap();
-              for candidate in candidates.iter().skip(1) {
-                  minus -= candidate.parse::<u32>().unwrap();
-              }
-              minus.to_string()
+                let candidates = values.split(" ").collect::<Vec<&str>>();
+                let mut minus = candidates[0].parse::<u32>().unwrap();
+                for candidate in candidates.iter().skip(1) {
+                    minus -= candidate.parse::<u32>().unwrap();
+                }
+                minus.to_string()
+            }
+            TokenType::Star => {
+                let mut product = 1;
+                let candidates = values.split(" ").collect::<Vec<&str>>();
+                for candidate in candidates {
+                    product *= candidate.parse::<u32>().unwrap();
+                }
+                product.to_string()
+            }
+            TokenType::Slash => {
+                let candidates = values.split(" ").collect::<Vec<&str>>();
+                let mut quotient = candidates[0].parse::<u32>().unwrap();
+                for candidate in candidates.iter().skip(1) {
+                    quotient /= candidate.parse::<u32>().unwrap();
+                }
+                quotient.to_string()
             }
             _ => panic!("Unknown operation."),
         }
